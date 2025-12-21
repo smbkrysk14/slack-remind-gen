@@ -1,65 +1,208 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useMemo, useState } from "react";
+
+type Mode = "today" | "tomorrow" | "everyDay" | "everyWeek" | "inDays";
+
+const WEEKDAYS = [
+  { label: "月", value: "monday" },
+  { label: "火", value: "tuesday" },
+  { label: "水", value: "wednesday" },
+  { label: "木", value: "thursday" },
+  { label: "金", value: "friday" },
+  { label: "土", value: "saturday" },
+  { label: "日", value: "sunday" },
+] as const;
+
+function isValidTime24h(t: string) {
+  // HH:MM (00:00 - 23:59)
+  return /^([01]\d|2[0-3]):([0-5]\d)$/.test(t);
+}
+
+export default function Page() {
+  const [text, setText] = useState("");
+  const [mode, setMode] = useState<Mode>("tomorrow");
+
+  const [time, setTime] = useState("09:00");
+  const [weekday, setWeekday] = useState<(typeof WEEKDAYS)[number]["value"]>("monday");
+  const [days, setDays] = useState(3);
+
+  const [copied, setCopied] = useState(false);
+
+  const condition = useMemo(() => {
+    if (!isValidTime24h(time)) return null;
+
+    switch (mode) {
+      case "today":
+        return `at ${time}`;
+      case "tomorrow":
+        return `tomorrow at ${time}`;
+      case "everyDay":
+        return `every day at ${time}`;
+      case "everyWeek":
+        return `every ${weekday} at ${time}`;
+      case "inDays":
+        if (!(days >= 1 && days <= 30)) return null;
+        return `in ${days} days at ${time}`;
+      default:
+        return null;
+    }
+  }, [mode, time, weekday, days]);
+
+  const command = useMemo(() => {
+    const trimmed = text.trim();
+    if (!trimmed) return "";
+    if (!condition) return "";
+    // ダブルクォートはエスケープ（簡易）
+    const safe = trimmed.replaceAll(`"`, `\\"`);
+    return `/remind me "${safe}" ${condition}`;
+  }, [text, condition]);
+
+  const canGenerate = command.length > 0;
+
+  async function onCopy() {
+    if (!canGenerate) return;
+    await navigator.clipboard.writeText(command);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1200);
+  }
+
+  function onClear() {
+    setText("");
+    setMode("tomorrow");
+    setTime("09:00");
+    setWeekday("monday");
+    setDays(3);
+    setCopied(false);
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main style={{ maxWidth: 720, margin: "40px auto", padding: "0 16px", fontFamily: "system-ui" }}>
+      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12 }}>Slack Remind Command Generator</h1>
+      <p style={{ marginTop: 0, color: "#555" }}>
+        文言と条件を選ぶだけで <code>/remind</code> コマンドを生成します（24時間表記）。
+      </p>
+
+      <section style={{ display: "grid", gap: 12, marginTop: 18 }}>
+        <label style={{ display: "grid", gap: 6 }}>
+          <span style={{ fontWeight: 600 }}>リマインド文言</span>
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder='例：日報を書く'
+            style={{ padding: 10, border: "1px solid #ccc", borderRadius: 8 }}
+          />
+        </label>
+
+        <label style={{ display: "grid", gap: 6 }}>
+          <span style={{ fontWeight: 600 }}>リマインド条件</span>
+          <select
+            value={mode}
+            onChange={(e) => setMode(e.target.value as Mode)}
+            style={{ padding: 10, border: "1px solid #ccc", borderRadius: 8 }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+            <option value="today">今日 HH:MM</option>
+            <option value="tomorrow">明日 HH:MM</option>
+            <option value="everyDay">毎日 HH:MM</option>
+            <option value="everyWeek">毎週（曜日）HH:MM</option>
+            <option value="inDays">X日後 HH:MM</option>
+          </select>
+        </label>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <label style={{ display: "grid", gap: 6 }}>
+            <span style={{ fontWeight: 600 }}>時刻（24時間）</span>
+            <input
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              placeholder="09:00"
+              inputMode="numeric"
+              style={{ padding: 10, border: "1px solid #ccc", borderRadius: 8 }}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            {!isValidTime24h(time) && <span style={{ color: "crimson", fontSize: 12 }}>HH:MM（00:00〜23:59）</span>}
+          </label>
+
+          {mode === "everyWeek" && (
+            <label style={{ display: "grid", gap: 6 }}>
+              <span style={{ fontWeight: 600 }}>曜日</span>
+              <select
+                value={weekday}
+                onChange={(e) => setWeekday(e.target.value as any)}
+                style={{ padding: 10, border: "1px solid #ccc", borderRadius: 8 }}
+              >
+                {WEEKDAYS.map((d) => (
+                  <option key={d.value} value={d.value}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {mode === "inDays" && (
+            <label style={{ display: "grid", gap: 6 }}>
+              <span style={{ fontWeight: 600 }}>X（日後）</span>
+              <select
+                value={days}
+                onChange={(e) => setDays(Number(e.target.value))}
+                style={{ padding: 10, border: "1px solid #ccc", borderRadius: 8 }}
+              >
+                {Array.from({ length: 30 }, (_, i) => i + 1).map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
-      </main>
-    </div>
+
+        <label style={{ display: "grid", gap: 6 }}>
+          <span style={{ fontWeight: 600 }}>生成されたコマンド</span>
+          <textarea
+            value={command}
+            readOnly
+            rows={3}
+            style={{ padding: 10, border: "1px solid #ccc", borderRadius: 8, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}
+            placeholder='ここに生成されます'
+          />
+        </label>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={onCopy}
+            disabled={!canGenerate}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: "1px solid #ccc",
+              background: canGenerate ? "#111" : "#eee",
+              color: canGenerate ? "#fff" : "#999",
+              cursor: canGenerate ? "pointer" : "not-allowed",
+            }}
+          >
+            {copied ? "コピーしました" : "コピー"}
+          </button>
+
+          <button
+            onClick={onClear}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: "1px solid #ccc",
+              background: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            クリア
+          </button>
+        </div>
+      </section>
+
+      <hr style={{ margin: "24px 0" }} />
+      <p style={{ color: "#666", fontSize: 13 }}>
+        生成したコマンドをSlackに貼り付けて実行してください。Slack側の解釈に依存するため、環境によっては表現の微調整が必要な場合があります。
+      </p>
+    </main>
   );
 }
