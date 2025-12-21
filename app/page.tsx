@@ -34,7 +34,7 @@ export default function Page() {
 
     switch (mode) {
       case "today":
-        return `at ${time}`;
+        return `today at ${time}`;
       case "tomorrow":
         return `tomorrow at ${time}`;
       case "everyDay":
