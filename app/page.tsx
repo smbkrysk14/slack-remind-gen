@@ -1,6 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { gaEvent } from "@/app/lib/gtag";
+
+
 
 type Mode = "today" | "tomorrow" | "everyDay" | "everyWeek" | "inDays";
 
@@ -61,13 +64,21 @@ export default function Page() {
   const canGenerate = command.length > 0;
 
   async function onCopy() {
-    if (!canGenerate) return;
+  if (!canGenerate) return;
+
+  gaEvent("copy_command"); // ★先に送る（押下を記録）
+
+  try {
     await navigator.clipboard.writeText(command);
     setCopied(true);
     setTimeout(() => setCopied(false), 1200);
+  } catch (e) {
+    gaEvent("copy_command_failed"); // 任意（入れると原因調査が楽）
   }
+}
 
   function onClear() {
+    gaEvent("clear_form"); // ★追加
     setText("");
     setMode("tomorrow");
     setTime("09:00");
@@ -75,6 +86,17 @@ export default function Page() {
     setDays(3);
     setCopied(false);
   }
+
+  const prevCanGenerate = useRef(false);
+
+  useEffect(() => {
+    // 空 → 非空 になった瞬間だけ「生成」とみなす
+    if (!prevCanGenerate.current && canGenerate) {
+      gaEvent("generate_command");
+    }
+    prevCanGenerate.current = canGenerate;
+  }, [canGenerate]);
+
 
   return (
     <main style={{ maxWidth: 720, margin: "40px auto", padding: "0 16px", fontFamily: "system-ui" }}>
