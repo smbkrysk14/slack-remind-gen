@@ -63,40 +63,43 @@ export default function Page() {
 
   const canGenerate = command.length > 0;
 
-  async function onCopy() {
+async function onCopy() {
   if (!canGenerate) return;
 
-  gaEvent("copy_command"); // ★先に送る（押下を記録）
+  gaEvent("copy_command", {
+    mode, // today / tomorrow / everyDay / everyWeek / inDays
+  });
 
   try {
     await navigator.clipboard.writeText(command);
     setCopied(true);
     setTimeout(() => setCopied(false), 1200);
   } catch (e) {
-    gaEvent("copy_command_failed"); // 任意（入れると原因調査が楽）
+    gaEvent("copy_command_failed", { mode });
   }
 }
 
-  function onClear() {
-    gaEvent("clear_form"); // ★追加
-    setText("");
-    setMode("tomorrow");
-    setTime("09:00");
-    setWeekday("monday");
-    setDays(3);
-    setCopied(false);
+function onClear() {
+  gaEvent("clear_form");
+
+  setText("");
+  setMode("tomorrow");
+  setTime("09:00");
+  setWeekday("monday");
+  setDays(3);
+  setCopied(false);
+}
+
+const prevCanGenerate = useRef(false);
+
+useEffect(() => {
+  if (!prevCanGenerate.current && canGenerate) {
+    gaEvent("command_ready", {
+      mode,
+    });
   }
-
-  const prevCanGenerate = useRef(false);
-
-  useEffect(() => {
-    // 空 → 非空 になった瞬間だけ「生成」とみなす
-    if (!prevCanGenerate.current && canGenerate) {
-      gaEvent("generate_command");
-    }
-    prevCanGenerate.current = canGenerate;
-  }, [canGenerate]);
-
+  prevCanGenerate.current = canGenerate;
+}, [canGenerate, mode]);
 
   return (
     <main style={{ maxWidth: 720, margin: "40px auto", padding: "0 16px", fontFamily: "system-ui" }}>

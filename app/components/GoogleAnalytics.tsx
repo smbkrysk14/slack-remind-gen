@@ -1,3 +1,4 @@
+// app/components/GoogleAnalytics.tsx
 "use client";
 
 import Script from "next/script";
@@ -9,10 +10,12 @@ export function GoogleAnalytics() {
 
   return (
     <>
+      {/* gtag.js を読み込む */}
       <Script
         src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
         strategy="afterInteractive"
       />
+      {/* window.gtag を定義して config */}
       <Script id="ga-init" strategy="afterInteractive">
         {`
           window.dataLayer = window.dataLayer || [];
