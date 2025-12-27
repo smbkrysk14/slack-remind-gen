@@ -59,7 +59,7 @@ export default function Page() {
     if (!trimmed) return "";
     if (!condition) return "";
     // ダブルクォートはエスケープ（簡易）
-    return `/remind ${destination} "${safe}" ${condition}`;
+    return `/remind ${destination} ${trimmed} ${condition}`;
   }, [text, condition, destination]);
 
   const canGenerate = command.length > 0;
@@ -77,7 +77,10 @@ async function onCopy() {
     setCopied(true);
     setTimeout(() => setCopied(false), 1200);
   } catch (e) {
-    gaEvent("copy_command_failed", { mode });
+    gaEvent("copy_command_failed", {
+  mode,
+  destination_type: getDestinationType(destination),
+});
   }
 }
 
