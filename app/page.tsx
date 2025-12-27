@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { gaEvent } from "@/app/lib/gtag";
 
-
-
 type Mode = "today" | "tomorrow" | "everyDay" | "everyWeek" | "inDays";
 
 const WEEKDAYS = [
@@ -24,7 +22,6 @@ function isValidTime24h(t: string) {
 }
 
 export default function Page() {
-  const [destination, setDestination] = useState("me");
   const [text, setText] = useState("");
   const [mode, setMode] = useState<Mode>("tomorrow");
 
@@ -33,6 +30,26 @@ export default function Page() {
   const [days, setDays] = useState(3);
 
   const [copied, setCopied] = useState(false);
+
+  type DestinationType = "me" | "channel" | "user";
+
+  const [destinationType, setDestinationType] = useState<DestinationType>("me");
+  const [channelName, setChannelName] = useState(""); // 例: general
+  const [userName, setUserName] = useState("");       // 例: yamada
+
+  const destination = useMemo(() => {
+    if (destinationType === "me") return "me";
+    if (destinationType === "channel") {
+      const v = channelName.trim().replace(/^#/, "");
+      return v ? `#${v}` : "";
+    }
+    if (destinationType === "user") {
+      const v = userName.trim().replace(/^@/, "");
+      return v ? `@${v}` : "";
+    }
+    return "me";
+  }, [destinationType, channelName, userName]);
+
 
   const condition = useMemo(() => {
     if (!isValidTime24h(time)) return null;
@@ -58,6 +75,7 @@ export default function Page() {
     const trimmed = text.trim();
     if (!trimmed) return "";
     if (!condition) return "";
+    if (!destination) return "";
     // ダブルクォートはエスケープ（簡易）
     return `/remind ${destination} ${trimmed} ${condition}`;
   }, [text, condition, destination]);
@@ -67,10 +85,8 @@ export default function Page() {
 async function onCopy() {
   if (!canGenerate) return;
 
-  gaEvent("copy_command", {
-    mode,
-    destination_type: getDestinationType(destination),
-  });
+  gaEvent("copy_command", { mode, destination_type: destinationType });
+
 
   try {
     await navigator.clipboard.writeText(command);
@@ -78,15 +94,18 @@ async function onCopy() {
     setTimeout(() => setCopied(false), 1200);
   } catch (e) {
     gaEvent("copy_command_failed", {
-  mode,
-  destination_type: getDestinationType(destination),
-});
+      mode,
+      destination_type: destinationType,
+    });
   }
 }
 
 function onClear() {
   gaEvent("clear_form");
 
+  setDestinationType("me");
+  setChannelName("");
+  setUserName("");
   setText("");
   setMode("tomorrow");
   setTime("09:00");
@@ -95,26 +114,19 @@ function onClear() {
   setCopied(false);
 }
 
-function getDestinationType(dest: string) {
-  if (dest === "me") return "me";
-  if (dest.startsWith("#")) return "channel";
-  if (dest.startsWith("@")) return "user";
-  return "other";
-}
-
 const prevCanGenerate = useRef(false);
 
 useEffect(() => {
   if (!prevCanGenerate.current && canGenerate) {
     gaEvent("command_ready", {
       mode,
-      destination_type: getDestinationType(destination),
+      destination_type: destinationType,
       has_multiline: text.includes("\n"),
       message_length: text.trim().length,
     });
   }
   prevCanGenerate.current = canGenerate;
-}, [canGenerate, mode, destination, text]);
+}, [canGenerate, mode, destinationType, destination, text]);
 
   return (
     <main style={{ maxWidth: 720, margin: "40px auto", padding: "0 16px", fontFamily: "system-ui" }}>
@@ -127,13 +139,46 @@ useEffect(() => {
       <section style={{ display: "grid", gap: 12, marginTop: 18 }}>
         <label style={{ display: "grid", gap: 6 }}>
           <span style={{ fontWeight: 600 }}>リマインド先</span>
-          <input
-            value={destination}
-            onChange={(e) => setDestination(e.target.value)}
-            placeholder="me / #general / @username"
-            style={{ padding: 10, border: "1px solid #ccc", borderRadius: 8 }}
-          />
+
+          <div style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 10 }}>
+            <select
+              value={destinationType}
+              onChange={(e) => {
+                const next = e.target.value as DestinationType;
+                gaEvent("change_destination_type", { from: destinationType, to: next });
+                setDestinationType(next);
+              }}
+              style={{ padding: 10, border: "1px solid #ccc", borderRadius: 8 }}
+            >
+              <option value="me">自分（Slackbot）</option>
+              <option value="channel">チャンネル</option>
+              <option value="user">ユーザー</option>
+            </select>
+
+            {destinationType === "me" ? (
+              <input
+                value="me"
+                readOnly
+                style={{ padding: 10, border: "1px solid #ccc", borderRadius: 8, background: "#f7f7f7" }}
+              />
+            ) : destinationType === "channel" ? (
+              <input
+                value={channelName}
+                onChange={(e) => setChannelName(e.target.value)}
+                placeholder="例: general（#は不要）"
+                style={{ padding: 10, border: "1px solid #ccc", borderRadius: 8 }}
+              />
+            ) : (
+              <input
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                placeholder="例: yamada（@は不要）"
+                style={{ padding: 10, border: "1px solid #ccc", borderRadius: 8 }}
+              />
+            )}
+          </div>
         </label>
+
 
         <label style={{ display: "grid", gap: 6 }}>
           <span style={{ fontWeight: 600 }}>リマインド文言</span>
