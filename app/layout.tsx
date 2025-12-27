@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RemindEasy | 考えないSlackリマインド",
+  title: "Slackリマインド作成 | 考えずに使えるリマインド入力",
   description:
-    "Slackの/remindコマンドを、考えずに生成できる無料ツール。",
+    "Slackのリマインドを、コマンドを覚えずに簡単に作成できる無料ツールです。",
 };
 
 export default function RootLayout({

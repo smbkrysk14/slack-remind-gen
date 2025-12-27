@@ -130,10 +130,10 @@ useEffect(() => {
 
   return (
     <main style={{ maxWidth: 720, margin: "40px auto", padding: "0 16px", fontFamily: "system-ui" }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12 }}>Slack Remind Command Generator</h1>
+      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12 }}>Slackリマインド作成</h1>
       <p>
-        考えずに使える Slack リマインド。
-        入力するだけで <code>/remind</code> コマンドを生成します。
+        考えずに使えるリマインド入力。
+        入力するだけで Slack の <code>/remind</code> コマンドを作成できます。
       </p>
 
       <section style={{ display: "grid", gap: 12, marginTop: 18 }}>
