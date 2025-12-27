@@ -17,12 +17,14 @@ const WEEKDAYS = [
   { label: "日", value: "sunday" },
 ] as const;
 
+
 function isValidTime24h(t: string) {
   // HH:MM (00:00 - 23:59)
   return /^([01]\d|2[0-3]):([0-5]\d)$/.test(t);
 }
 
 export default function Page() {
+  const [destination, setDestination] = useState("me");
   const [text, setText] = useState("");
   const [mode, setMode] = useState<Mode>("tomorrow");
 
@@ -57,9 +59,8 @@ export default function Page() {
     if (!trimmed) return "";
     if (!condition) return "";
     // ダブルクォートはエスケープ（簡易）
-    const safe = trimmed.replaceAll(`"`, `\\"`);
-    return `/remind me "${safe}" ${condition}`;
-  }, [text, condition]);
+    return `/remind ${destination} "${safe}" ${condition}`;
+  }, [text, condition, destination]);
 
   const canGenerate = command.length > 0;
 
@@ -67,7 +68,8 @@ async function onCopy() {
   if (!canGenerate) return;
 
   gaEvent("copy_command", {
-    mode, // today / tomorrow / everyDay / everyWeek / inDays
+    mode,
+    destination_type: getDestinationType(destination),
   });
 
   try {
@@ -90,33 +92,55 @@ function onClear() {
   setCopied(false);
 }
 
+function getDestinationType(dest: string) {
+  if (dest === "me") return "me";
+  if (dest.startsWith("#")) return "channel";
+  if (dest.startsWith("@")) return "user";
+  return "other";
+}
+
 const prevCanGenerate = useRef(false);
 
 useEffect(() => {
   if (!prevCanGenerate.current && canGenerate) {
     gaEvent("command_ready", {
       mode,
+      destination_type: getDestinationType(destination),
+      has_multiline: text.includes("\n"),
+      message_length: text.trim().length,
     });
   }
   prevCanGenerate.current = canGenerate;
-}, [canGenerate, mode]);
+}, [canGenerate, mode, destination, text]);
 
   return (
     <main style={{ maxWidth: 720, margin: "40px auto", padding: "0 16px", fontFamily: "system-ui" }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12 }}>Slack Remind Command Generator</h1>
-      <p style={{ marginTop: 0, color: "#555" }}>
-        文言と条件を選ぶだけで <code>/remind</code> コマンドを生成します（24時間表記）。
+      <p>
+        考えずに使える Slack リマインド。
+        入力するだけで <code>/remind</code> コマンドを生成します。
       </p>
 
       <section style={{ display: "grid", gap: 12, marginTop: 18 }}>
         <label style={{ display: "grid", gap: 6 }}>
-          <span style={{ fontWeight: 600 }}>リマインド文言</span>
+          <span style={{ fontWeight: 600 }}>リマインド先</span>
           <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder='例：日報を書く'
+            value={destination}
+            onChange={(e) => setDestination(e.target.value)}
+            placeholder="me / #general / @username"
             style={{ padding: 10, border: "1px solid #ccc", borderRadius: 8 }}
           />
+        </label>
+
+        <label style={{ display: "grid", gap: 6 }}>
+          <span style={{ fontWeight: 600 }}>リマインド文言</span>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={4}
+              placeholder="例：日報を書く\n・KPTを書く\n・共有する"
+              style={{ padding: 10, border: "1px solid #ccc", borderRadius: 8 }}
+            />
         </label>
 
         <label style={{ display: "grid", gap: 6 }}>
